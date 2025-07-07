@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CP3 Workflow Trigger</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        padding: 20px;
+        background-color: #f7f7f5;
+        margin: 0;
+      }
+      .container {
+        max-width: 450px;
+        margin: 0 auto;
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        color: #37352f;
+        margin-bottom: 10px;
+        font-size: 24px;
+      }
+      .subtitle {
+        color: #787774;
+        font-size: 14px;
+        margin-bottom: 25px;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        color: #37352f;
+        font-weight: 500;
+        font-size: 14px;
+      }
+      .label-description {
+        color: #787774;
+        font-size: 12px;
+        font-weight: normal;
+        margin-top: 2px;
+      }
+      input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #e1e1e0;
+        border-radius: 4px;
+        font-size: 14px;
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+      }
+      input:focus {
+        outline: none;
+        border-color: #2ecc71;
+      }
+      .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+      }
+      button {
+        flex: 1;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .execute-btn {
+        background-color: #2ecc71;
+        color: white;
+        flex: 2;
+      }
+      .execute-btn:hover {
+        background-color: #27ae60;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(46, 204, 113, 0.3);
+      }
+      .execute-btn:disabled {
+        background-color: #95a5a6;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+      .clear-btn {
+        background-color: #ecf0f1;
+        color: #7f8c8d;
+        flex: 1;
+      }
+      .clear-btn:hover {
+        background-color: #bdc3c7;
+      }
+      .status {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 4px;
+        display: none;
+        font-size: 14px;
+      }
+      .status.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .status.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .status.loading {
+        background-color: #cce5ff;
+        color: #004085;
+        border: 1px solid #b8daff;
+      }
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .divider {
+        height: 1px;
+        background-color: #e1e1e0;
+        margin: 25px 0;
+      }
+      .info-box {
+        background-color: #f7f7f5;
+        border: 1px solid #e1e1e0;
+        border-radius: 4px;
+        padding: 12px;
+        margin-bottom: 20px;
+        font-size: 13px;
+        color: #37352f;
+      }
+      .info-box strong {
+        color: #2ecc71;
+      }
+      .check-list {
+        background-color: #f0f7ff;
+        border: 1px solid #d0e3ff;
+        border-radius: 4px;
+        padding: 15px;
+        margin-top: 20px;
+        font-size: 13px;
+      }
+      .check-list h4 {
+        margin: 0 0 10px 0;
+        color: #1a5490;
+        font-size: 14px;
+      }
+      .check-list ul {
+        margin: 0;
+        padding-left: 20px;
+        color: #37352f;
+      }
+      .check-list li {
+        margin-bottom: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>開発計画作成フロー</h2>
+      <p class="subtitle">Notion・GitHubへタスクを自動登録します</p>
+
+      <div class="info-box">
+        💡
+        <strong>開始前に確認:</strong>
+        設計書データベースに以下のページが存在することを確認してください
+      </div>
+
+      <div class="form-group">
+        <label for="projectId">
+          プロジェクトID
+          <div class="label-description">プロジェクトの識別ID</div>
+        </label>
+        <input
+          type="text"
+          id="projectId"
+          placeholder="例: PROJ-2024-001"
+          value=""
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="designDocsDbId">
+          設計書データベースID
+          <div class="label-description">
+            機能要件一覧・画面一覧・API一覧・バッチ一覧を格納しているデータベースのID
+          </div>
+        </label>
+        <input
+          type="text"
+          id="designDocsDbId"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          value=""
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="taskDbId">
+          タスクデータベースID
+          <div class="label-description">
+            タスクを登録する先のNotionデータベースID
+          </div>
+        </label>
+        <input
+          type="text"
+          id="taskDbId"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          value=""
+        />
+      </div>
+
+      <div class="check-list">
+        <h4>📋 実行前チェックリスト</h4>
+        <ul>
+          <li>機能要件一覧が設計書DBに存在する</li>
+          <li>画面一覧が設計書DBに存在する</li>
+          <li>API一覧が設計書DBに存在する</li>
+          <li>バッチ一覧が設計書DBに存在する</li>
+          <li>タスクDBが作成済みで適切なプロパティが設定されている</li>
+        </ul>
+      </div>
+
+      <div class="button-group">
+        <button class="clear-btn" onclick="clearForm()">クリア</button>
+        <button class="execute-btn" onclick="executeWorkflow()">
+          <span id="btnText">タスク登録を実行</span>
+        </button>
+      </div>
+
+      <div id="status" class="status"></div>
+    </div>
+
+    <script>
+      // 埋め込みWebhook URL（環境に応じて変更してください）
+      const WEBHOOK_URL =
+        "https://shotawatanabe777.app.n8n.cloud/webhook-test/d255365d-693e-4826-99b2-3a7ee93fdfc6";
+
+      // ローカルストレージから保存された値を読み込む
+      window.onload = function () {
+        const fields = ["projectId", "designDocsDbId", "taskDbId"];
+        fields.forEach((field) => {
+          const saved = localStorage.getItem(`cp3_${field}`);
+          if (saved) {
+            document.getElementById(field).value = saved;
+          }
+        });
+      };
+
+      // 値を保存する
+      function saveValues() {
+        const fields = ["projectId", "designDocsDbId", "taskDbId"];
+        fields.forEach((field) => {
+          const value = document.getElementById(field).value;
+          if (value) {
+            localStorage.setItem(`cp3_${field}`, value);
+          }
+        });
+      }
+
+      // フォームをクリア
+      function clearForm() {
+        const fields = ["projectId", "designDocsDbId", "taskDbId"];
+        fields.forEach((field) => {
+          document.getElementById(field).value = "";
+          localStorage.removeItem(`cp3_${field}`);
+        });
+        hideStatus();
+      }
+
+      function showStatus(message, type) {
+        const statusDiv = document.getElementById("status");
+        statusDiv.className = `status ${type}`;
+        if (type === "loading") {
+          statusDiv.innerHTML = '<span class="spinner"></span>' + message;
+        } else {
+          statusDiv.innerHTML = message;
+        }
+        statusDiv.style.display = "block";
+
+        // 成功メッセージは5秒後に自動的に非表示
+        if (type === "success") {
+          setTimeout(() => {
+            hideStatus();
+          }, 5000);
+        }
+      }
+
+      function hideStatus() {
+        const statusDiv = document.getElementById("status");
+        statusDiv.style.display = "none";
+      }
+
+      function validateNotionId(id) {
+        // Notion IDの基本的なフォーマットチェック（UUID形式）
+        const uuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(id);
+      }
+
+      async function executeWorkflow() {
+        // 入力値を取得
+        const projectId = document.getElementById("projectId").value.trim();
+        const designDocsDbId = document
+          .getElementById("designDocsDbId")
+          .value.trim();
+        const taskDbId = document.getElementById("taskDbId").value.trim();
+
+        // バリデーション
+        if (!projectId) {
+          showStatus("⚠️ プロジェクトIDを入力してください", "error");
+          return;
+        }
+
+        if (!designDocsDbId) {
+          showStatus("⚠️ 設計書データベースIDを入力してください", "error");
+          return;
+        }
+
+        if (!taskDbId) {
+          showStatus("⚠️ タスクデータベースIDを入力してください", "error");
+          return;
+        }
+
+        // Notion IDフォーマットのバリデーション
+        if (!validateNotionId(designDocsDbId)) {
+          showStatus(
+            "⚠️ 設計書データベースIDの形式が正しくありません",
+            "error"
+          );
+          return;
+        }
+
+        if (!validateNotionId(taskDbId)) {
+          showStatus(
+            "⚠️ タスクデータベースIDの形式が正しくありません",
+            "error"
+          );
+          return;
+        }
+
+        // 値を保存
+        saveValues();
+
+        // 実行ボタンを無効化
+        const executeBtn = document.querySelector(".execute-btn");
+        const btnText = document.getElementById("btnText");
+        executeBtn.disabled = true;
+        btnText.textContent = "処理中...";
+
+        showStatus("タスク登録処理を開始しています...", "loading");
+
+        const data = {
+          projectId: projectId,
+          designDocsDatabaseId: designDocsDbId,
+          taskDatabaseId: taskDbId,
+          cp3ResultId: `CP3-${new Date().toISOString()}`,
+          timestamp: new Date().toISOString(),
+        };
+
+        try {
+          const response = await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            showStatus(
+              "✅ タスク登録が正常に開始されました！処理完了まで数分かかる場合があります。",
+              "success"
+            );
+
+            // 結果の詳細を表示
+            if (result.taskCount) {
+              setTimeout(() => {
+                showStatus(
+                  `✅ 登録完了: ${result.taskCount}個のタスクを作成しました`,
+                  "success"
+                );
+              }, 2000);
+            }
+          } else {
+            const errorText = await response.text();
+            showStatus(
+              `❌ エラーが発生しました: ${response.status} - ${errorText}`,
+              "error"
+            );
+          }
+        } catch (error) {
+          showStatus(`❌ 通信エラー: ${error.message}`, "error");
+        } finally {
+          // ボタンを再度有効化
+          executeBtn.disabled = false;
+          btnText.textContent = "タスク登録を実行";
+        }
+      }
+
+      // Enterキーでも実行できるようにする
+      document.addEventListener("keypress", function (event) {
+        if (event.key === "Enter" && !event.shiftKey) {
+          const activeElement = document.activeElement;
+          if (activeElement && activeElement.tagName === "INPUT") {
+            executeWorkflow();
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
