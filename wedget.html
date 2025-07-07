@@ -346,21 +346,21 @@
         }
 
         // Notion IDフォーマットのバリデーション
-        if (!validateNotionId(designDocsDbId)) {
-          showStatus(
-            "⚠️ 設計書データベースIDの形式が正しくありません",
-            "error"
-          );
-          return;
-        }
+        // if (!validateNotionId(designDocsDbId)) {
+        //   showStatus(
+        //     "⚠️ 設計書データベースIDの形式が正しくありません",
+        //     "error"
+        //   );
+        //   return;
+        // }
 
-        if (!validateNotionId(taskDbId)) {
-          showStatus(
-            "⚠️ タスクデータベースIDの形式が正しくありません",
-            "error"
-          );
-          return;
-        }
+        // if (!validateNotionId(taskDbId)) {
+        //   showStatus(
+        //     "⚠️ タスクデータベースIDの形式が正しくありません",
+        //     "error"
+        //   );
+        //   return;
+        // }
 
         // 値を保存
         saveValues();
