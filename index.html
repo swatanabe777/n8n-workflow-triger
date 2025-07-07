@@ -257,7 +257,7 @@
     <script>
       // 埋め込みWebhook URL（環境に応じて変更してください）
       const WEBHOOK_URL =
-        "https://shotawatanabe777.app.n8n.cloud/webhook-test/d255365d-693e-4826-99b2-3a7ee93fdfc6";
+         "https://shotawatanabe777.app.n8n.cloud/webhook-test/d255365d-693e-4826-99b2-3a7ee93fdfc6";
 
       // ローカルストレージから保存された値を読み込む
       window.onload = function () {
@@ -314,12 +314,12 @@
         statusDiv.style.display = "none";
       }
 
-      function validateNotionId(id) {
-        // Notion IDの基本的なフォーマットチェック（UUID形式）
-        const uuidRegex =
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        return uuidRegex.test(id);
-      }
+      // function validateNotionId(id) {
+      //   // Notion IDの基本的なフォーマットチェック（UUID形式）
+      //   const uuidRegex =
+      //     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      //   return uuidRegex.test(id);
+      // }
 
       async function executeWorkflow() {
         // 入力値を取得
@@ -346,21 +346,21 @@
         }
 
         // Notion IDフォーマットのバリデーション
-        if (!validateNotionId(designDocsDbId)) {
-          showStatus(
-            "⚠️ 設計書データベースIDの形式が正しくありません",
-            "error"
-          );
-          return;
-        }
+        // if (!validateNotionId(designDocsDbId)) {
+        //   showStatus(
+        //     "⚠️ 設計書データベースIDの形式が正しくありません",
+        //     "error"
+        //   );
+        //   return;
+        // }
 
-        if (!validateNotionId(taskDbId)) {
-          showStatus(
-            "⚠️ タスクデータベースIDの形式が正しくありません",
-            "error"
-          );
-          return;
-        }
+        // if (!validateNotionId(taskDbId)) {
+        //   showStatus(
+        //     "⚠️ タスクデータベースIDの形式が正しくありません",
+        //     "error"
+        //   );
+        //   return;
+        // }
 
         // 値を保存
         saveValues();
