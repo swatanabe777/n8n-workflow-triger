@@ -47,6 +47,7 @@
             gap: 10px;
             justify-content: center;
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
         
         button {
@@ -67,6 +68,14 @@
         button:disabled {
             background: #ccc;
             cursor: not-allowed;
+        }
+        
+        #downloadAllButton {
+            background: #28a745;
+        }
+        
+        #downloadAllButton:hover {
+            background: #218838;
         }
         
         .capture-info {
@@ -181,6 +190,7 @@
         <div class="controls">
             <button id="startCamera">カメラを開始</button>
             <button id="captureButton" disabled>バースト撮影</button>
+            <button id="downloadAllButton" style="display: none;">すべての画像をダウンロード</button>
         </div>
         
         <div class="capture-info" id="captureInfo"></div>
@@ -197,8 +207,10 @@
         let ctx = canvas.getContext('2d');
         let captureButton = document.getElementById('captureButton');
         let startCameraButton = document.getElementById('startCamera');
+        let downloadAllButton = document.getElementById('downloadAllButton');
         let captureInfo = document.getElementById('captureInfo');
         let resultsContainer = document.getElementById('results');
+        let allFrames = []; // 全画像を保存する配列
         
         // カメラの開始
         startCameraButton.addEventListener('click', async () => {
@@ -234,6 +246,7 @@
             const quality = parseFloat(document.getElementById('imageQuality').value);
             
             captureButton.disabled = true;
+            downloadAllButton.style.display = 'none';
             resultsContainer.innerHTML = '';
             captureInfo.textContent = '撮影中...';
             
@@ -278,11 +291,38 @@
             // スコアでソート（高い順）
             analyzedFrames.sort((a, b) => b.score - a.score);
             
+            // 全画像を保存
+            allFrames = analyzedFrames;
+            
             // 結果を表示
             displayResults(analyzedFrames);
             
             captureButton.disabled = false;
+            downloadAllButton.style.display = 'inline-block';
             captureInfo.textContent = `撮影完了！最高スコア: ${analyzedFrames[0].score.toFixed(2)}`;
+        });
+        
+        // すべての画像をダウンロード
+        downloadAllButton.addEventListener('click', async () => {
+            if (allFrames.length === 0) return;
+            
+            downloadAllButton.disabled = true;
+            downloadAllButton.textContent = 'ダウンロード中...';
+            
+            // 各画像を順番にダウンロード
+            for (let i = 0; i < allFrames.length; i++) {
+                const frame = allFrames[i];
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(frame.blob);
+                a.download = `burst_${i + 1}_score_${frame.score.toFixed(0)}.jpg`;
+                a.click();
+                
+                // ブラウザの制限を避けるため少し遅延を入れる
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            downloadAllButton.disabled = false;
+            downloadAllButton.textContent = 'すべての画像をダウンロード';
         });
         
         // 画像品質を評価する関数
@@ -366,17 +406,17 @@
                     bestLabel.className = 'best-label';
                     bestLabel.textContent = 'BEST';
                     resultItem.appendChild(bestLabel);
-                    
-                    // ベスト画像をダウンロード可能にする
-                    img.style.cursor = 'pointer';
-                    img.title = 'クリックしてダウンロード';
-                    img.addEventListener('click', () => {
-                        const a = document.createElement('a');
-                        a.href = img.src;
-                        a.download = `best_shot_${Date.now()}.jpg`;
-                        a.click();
-                    });
                 }
+                
+                // すべての画像をクリックでダウンロード可能にする
+                img.style.cursor = 'pointer';
+                img.title = 'クリックしてダウンロード';
+                img.addEventListener('click', () => {
+                    const a = document.createElement('a');
+                    a.href = img.src;
+                    a.download = `burst_${displayIndex + 1}_score_${frame.score.toFixed(0)}.jpg`;
+                    a.click();
+                });
                 
                 resultsContainer.appendChild(resultItem);
             });
