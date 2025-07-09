@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>品質優先バースト撮影</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto 20px;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        #video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .capture-info {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .result-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #f0f0f0;
+        }
+        
+        .result-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .result-item.best {
+            border: 3px solid #4CAF50;
+        }
+        
+        .score {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .best-label {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: #4CAF50;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        canvas {
+            display: none;
+        }
+        
+        .settings {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .setting-item {
+            margin-bottom: 10px;
+        }
+        
+        label {
+            display: inline-block;
+            width: 150px;
+            font-size: 14px;
+        }
+        
+        input[type="number"], select {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>品質優先バースト撮影</h1>
+        
+        <div class="settings">
+            <div class="setting-item">
+                <label>撮影枚数:</label>
+                <input type="number" id="burstCount" min="3" max="10" value="5">
+            </div>
+            <div class="setting-item">
+                <label>撮影間隔 (ms):</label>
+                <input type="number" id="captureInterval" min="100" max="1000" value="200" step="100">
+            </div>
+            <div class="setting-item">
+                <label>画質:</label>
+                <select id="imageQuality">
+                    <option value="0.95">最高 (95%)</option>
+                    <option value="0.85">高 (85%)</option>
+                    <option value="0.75">標準 (75%)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="camera-container">
+            <video id="video" autoplay playsinline></video>
+        </div>
+        
+        <div class="controls">
+            <button id="startCamera">カメラを開始</button>
+            <button id="captureButton" disabled>バースト撮影</button>
+        </div>
+        
+        <div class="capture-info" id="captureInfo"></div>
+        
+        <div id="results" class="results"></div>
+        
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script>
+        let stream = null;
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let captureButton = document.getElementById('captureButton');
+        let startCameraButton = document.getElementById('startCamera');
+        let captureInfo = document.getElementById('captureInfo');
+        let resultsContainer = document.getElementById('results');
+        
+        // カメラの開始
+        startCameraButton.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        facingMode: 'environment'
+                    }
+                });
+                
+                video.srcObject = stream;
+                captureButton.disabled = false;
+                startCameraButton.disabled = true;
+                
+                // ビデオのメタデータが読み込まれたらキャンバスのサイズを設定
+                video.addEventListener('loadedmetadata', () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                });
+                
+            } catch (err) {
+                console.error('カメラの起動に失敗しました:', err);
+                alert('カメラへのアクセスが許可されていません。');
+            }
+        });
+        
+        // バースト撮影
+        captureButton.addEventListener('click', async () => {
+            const burstCount = parseInt(document.getElementById('burstCount').value);
+            const interval = parseInt(document.getElementById('captureInterval').value);
+            const quality = parseFloat(document.getElementById('imageQuality').value);
+            
+            captureButton.disabled = true;
+            resultsContainer.innerHTML = '';
+            captureInfo.textContent = '撮影中...';
+            
+            const frames = [];
+            
+            // 連続撮影
+            for (let i = 0; i < burstCount; i++) {
+                captureInfo.textContent = `撮影中... ${i + 1}/${burstCount}`;
+                
+                // 現在のフレームをキャプチャ
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // 画像データとBlobを保存
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const blob = await new Promise(resolve => {
+                    canvas.toBlob(resolve, 'image/jpeg', quality);
+                });
+                
+                frames.push({
+                    blob: blob,
+                    imageData: imageData,
+                    timestamp: Date.now()
+                });
+                
+                if (i < burstCount - 1) {
+                    await new Promise(resolve => setTimeout(resolve, interval));
+                }
+            }
+            
+            captureInfo.textContent = '画像を解析中...';
+            
+            // 各フレームの品質スコアを計算
+            const analyzedFrames = frames.map((frame, index) => {
+                const score = calculateImageQuality(frame.imageData);
+                return {
+                    ...frame,
+                    score: score,
+                    index: index
+                };
+            });
+            
+            // スコアでソート（高い順）
+            analyzedFrames.sort((a, b) => b.score - a.score);
+            
+            // 結果を表示
+            displayResults(analyzedFrames);
+            
+            captureButton.disabled = false;
+            captureInfo.textContent = `撮影完了！最高スコア: ${analyzedFrames[0].score.toFixed(2)}`;
+        });
+        
+        // 画像品質を評価する関数
+        function calculateImageQuality(imageData) {
+            const data = imageData.data;
+            const width = imageData.width;
+            const height = imageData.height;
+            
+            // ラプラシアンフィルタを使用してシャープネスを計算
+            let variance = 0;
+            let mean = 0;
+            let count = 0;
+            
+            // 簡易的なエッジ検出
+            for (let y = 1; y < height - 1; y++) {
+                for (let x = 1; x < width - 1; x++) {
+                    const idx = (y * width + x) * 4;
+                    
+                    // グレースケール値を計算
+                    const gray = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
+                    
+                    // ラプラシアンフィルタ
+                    const laplacian = 
+                        -gray +
+                        (data[((y-1) * width + x) * 4] * 0.299 + data[((y-1) * width + x) * 4 + 1] * 0.587 + data[((y-1) * width + x) * 4 + 2] * 0.114) * 0.25 +
+                        (data[((y+1) * width + x) * 4] * 0.299 + data[((y+1) * width + x) * 4 + 1] * 0.587 + data[((y+1) * width + x) * 4 + 2] * 0.114) * 0.25 +
+                        (data[(y * width + (x-1)) * 4] * 0.299 + data[(y * width + (x-1)) * 4 + 1] * 0.587 + data[(y * width + (x-1)) * 4 + 2] * 0.114) * 0.25 +
+                        (data[(y * width + (x+1)) * 4] * 0.299 + data[(y * width + (x+1)) * 4 + 1] * 0.587 + data[(y * width + (x+1)) * 4 + 2] * 0.114) * 0.25;
+                    
+                    mean += Math.abs(laplacian);
+                    count++;
+                }
+            }
+            
+            mean /= count;
+            
+            // 分散を計算（より高い値 = よりシャープ）
+            for (let y = 1; y < height - 1; y += 10) {
+                for (let x = 1; x < width - 1; x += 10) {
+                    const idx = (y * width + x) * 4;
+                    const gray = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
+                    
+                    const laplacian = 
+                        -gray +
+                        (data[((y-1) * width + x) * 4] * 0.299 + data[((y-1) * width + x) * 4 + 1] * 0.587 + data[((y-1) * width + x) * 4 + 2] * 0.114) * 0.25 +
+                        (data[((y+1) * width + x) * 4] * 0.299 + data[((y+1) * width + x) * 4 + 1] * 0.587 + data[((y+1) * width + x) * 4 + 2] * 0.114) * 0.25 +
+                        (data[(y * width + (x-1)) * 4] * 0.299 + data[(y * width + (x-1)) * 4 + 1] * 0.587 + data[(y * width + (x-1)) * 4 + 2] * 0.114) * 0.25 +
+                        (data[(y * width + (x+1)) * 4] * 0.299 + data[(y * width + (x+1)) * 4 + 1] * 0.587 + data[(y * width + (x+1)) * 4 + 2] * 0.114) * 0.25;
+                    
+                    variance += Math.pow(Math.abs(laplacian) - mean, 2);
+                }
+            }
+            
+            return Math.sqrt(variance / count) * 100; // スコアを正規化
+        }
+        
+        // 結果を表示
+        function displayResults(frames) {
+            resultsContainer.innerHTML = '';
+            
+            frames.forEach((frame, displayIndex) => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item';
+                
+                if (displayIndex === 0) {
+                    resultItem.classList.add('best');
+                }
+                
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(frame.blob);
+                
+                const scoreLabel = document.createElement('div');
+                scoreLabel.className = 'score';
+                scoreLabel.textContent = frame.score.toFixed(2);
+                
+                resultItem.appendChild(img);
+                resultItem.appendChild(scoreLabel);
+                
+                if (displayIndex === 0) {
+                    const bestLabel = document.createElement('div');
+                    bestLabel.className = 'best-label';
+                    bestLabel.textContent = 'BEST';
+                    resultItem.appendChild(bestLabel);
+                    
+                    // ベスト画像をダウンロード可能にする
+                    img.style.cursor = 'pointer';
+                    img.title = 'クリックしてダウンロード';
+                    img.addEventListener('click', () => {
+                        const a = document.createElement('a');
+                        a.href = img.src;
+                        a.download = `best_shot_${Date.now()}.jpg`;
+                        a.click();
+                    });
+                }
+                
+                resultsContainer.appendChild(resultItem);
+            });
+        }
+    </script>
+</body>
+</html>
